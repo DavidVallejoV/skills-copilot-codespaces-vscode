@@ -1,47 +1,40 @@
 // Create web server
 const express = require('express');
 const app = express();
-const cors = require('cors');
+const bodyParser = require('body-parser');
 const fs = require('fs');
-const path = require('path');
 
-app.use(cors());
-app.use(express.json());
+// Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Middleware to serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Read comments from JSON file
+function readComments() {
+    const data = fs.readFileSync('comments.json');
+    return JSON.parse(data);
+}
 
-// Endpoint to get comments
+// Write comments to JSON file
+function writeComments(comments) {
+    fs.writeFileSync('comments.json', JSON.stringify(comments, null, 2));
+}
+
+// Routes
 app.get('/comments', (req, res) => {
-  fs.readFile(path.join(__dirname, 'comments.json'), 'utf8', (err, data) => {
-    if (err) {
-      return res.status(500).send('Error reading comments file');
-    }
-    res.json(JSON.parse(data));
-  });
+    const comments = readComments();
+    res.json(comments);
 });
 
-// Endpoint to post a new comment
 app.post('/comments', (req, res) => {
-  const newComment = req.body;
-  fs.readFile(path.join(__dirname, 'comments.json'), 'utf8', (err, data) => {
-    if (err) {
-      return res.status(500).send('Error reading comments file');
-    }
-    const comments = JSON.parse(data);
+    const newComment = req.body;
+    const comments = readComments();
     comments.push(newComment);
-    fs.writeFile(path.join(__dirname, 'comments.json'), JSON.stringify(comments), (err) => {
-      if (err) {
-        return res.status(500).send('Error writing comments file');
-      }
-      res.status(201).json(newComment);
-    });
-  });
+    writeComments(comments);
+    res.status(201).json(newComment);
 });
 
-// Start the server
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
-
