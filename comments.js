@@ -1,37 +1,47 @@
 // Create web server
 const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const Comment = require('./models/Comment');
-
 const app = express();
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/comments', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+// Middleware to serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Endpoint to get comments
+app.get('/comments', (req, res) => {
+  fs.readFile(path.join(__dirname, 'comments.json'), 'utf8', (err, data) => {
+    if (err) {
+      return res.status(500).send('Error reading comments file');
+    }
+    res.json(JSON.parse(data));
+  });
 });
 
-// Create a new comment
-app.post('/comments', async (req, res) => {
-  try {
-    const comment = new Comment(req.body);
-    await comment.save();
-    res.status(201).send(comment);
-  } catch (error) {
-    res.status(400).send(error);
-  }
+// Endpoint to post a new comment
+app.post('/comments', (req, res) => {
+  const newComment = req.body;
+  fs.readFile(path.join(__dirname, 'comments.json'), 'utf8', (err, data) => {
+    if (err) {
+      return res.status(500).send('Error reading comments file');
+    }
+    const comments = JSON.parse(data);
+    comments.push(newComment);
+    fs.writeFile(path.join(__dirname, 'comments.json'), JSON.stringify(comments), (err) => {
+      if (err) {
+        return res.status(500).send('Error writing comments file');
+      }
+      res.status(201).json(newComment);
+    });
+  });
 });
 
-// Get all comments
-app.get('/comments', async (req, res) => {
-  try {
-    const comments = await Comment.find();
-    res.status(200).send(comments);
-  } catch (error) {
-    res.status(500).send(error);
-  }
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
