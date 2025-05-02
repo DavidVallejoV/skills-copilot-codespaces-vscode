@@ -1,36 +1,38 @@
 // Create web server
 const express = require('express');
-const app = express();
+const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+
+// Create express app
+const app = express();
 
 // Middleware
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// Read comments from JSON file
-function readComments() {
-    const data = fs.readFileSync('comments.json');
-    return JSON.parse(data);
-}
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/comments', { useNewUrlParser: true, useUnifiedTopology: true });
 
-// Write comments to JSON file
-function writeComments(comments) {
-    fs.writeFileSync('comments.json', JSON.stringify(comments, null, 2));
-}
-
-// Routes
-app.get('/comments', (req, res) => {
-    const comments = readComments();
-    res.json(comments);
+// Define Comment schema and model
+const commentSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    comment: String,
 });
 
-app.post('/comments', (req, res) => {
-    const newComment = req.body;
-    const comments = readComments();
-    comments.push(newComment);
-    writeComments(comments);
-    res.status(201).json(newComment);
+const Comment = mongoose.model('Comment', commentSchema);
+
+// Create a new comment
+app.post('/comments', async (req, res) => {
+    const { name, email, comment } = req.body;
+    const newComment = new Comment({ name, email, comment });
+    await newComment.save();
+    res.status(201).send(newComment);
+});
+
+// Get all comments
+app.get('/comments', async (req, res) => {
+    const comments = await Comment.find();
+    res.status(200).send(comments);
 });
 
 // Start server
